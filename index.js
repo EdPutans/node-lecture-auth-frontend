@@ -1,32 +1,43 @@
 const host = `http://localhost:3000/`
 
-const apiCall = async (body, endpoint, method) => {
-    const token = await window.localStorage.getItem('token');
-      
+const getToken = () => {
+    const token = window.localStorage.getItem('token');
+    if(!token) return null;
+    if(token === 'undefined') return null;
+    return token;
+}
+
+const apiCall = async (body, endpoint, method) => { 
     const headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
     };
 
-    const authorization = token && token !== 'undefined' ? `${token}` : "";
-    if(authorization) headers['Authorization'] = authorization;
+    const token = getToken()
+    if(token) headers['Authorization'] = token;
 
-    const result = await fetch(`http://localhost:3000/${endpoint}`, {
+   return fetch(`http://localhost:3000/${endpoint}`, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined
     })
-    
-   return result.json();
-};
+    .then(res => res.json())
+    .catch(err => setErrorMessage(err));
+  };
 
 const register = async () => {
     const username = document.getElementById('create-username').value;
     const password = document.getElementById('create-password').value;
     
-    const result =  await apiCall({ username,password,}, 'register', "POST" );
-    await window.localStorage.setItem('token', result.token);
-    result.error ? setErrorMessage(result.error) : setSuccessMessage(result.message);
+    const result =  await apiCall({ username, password}, 'register', "POST" );
+
+    if(result?.error) {
+        setSuccessMessage("");
+        setErrorMessage(result.error)
+    } else {
+        setSuccessMessage(result.message);
+        setErrorMessage("");
+    }
 };
 
 const login = async (event) => {
@@ -35,18 +46,18 @@ const login = async (event) => {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
-    const result = await apiCall({ username,password }, 'login', "POST");
+    const result = await apiCall({ username, password }, 'login', "POST");
     await window.localStorage.setItem('token', result.token);
 
-    result.error ? setErrorMessage(result.error) : loginSuccess(result.codes);
+    result.error ? setErrorMessage(result.error) : handleSuccessfulLogin(result.code);
 };
 
 
-const getCodes = async () => {
-    if(!window.localStorage.getItem('token')) return;
+const getCode = async () => {
+    if(!getToken()) return;
 
-    const result = await apiCall(undefined, 'codes', "GET");
-    result.error ? setErrorMessage(result.error) : loginSuccess(result.codes);
+    const result = await apiCall('', 'code', "GET");
+    result.error ? setErrorMessage(result.error) : handleSuccessfulLogin(result.code);
 };
 
 const setErrorMessage = (error) => {
@@ -57,22 +68,22 @@ const setErrorMessage = (error) => {
 const setSuccessMessage = (message) => {
     const messageEl = document.getElementById('result');
     messageEl.innerText =  message;
-    clearError();
 };
 
-const loginSuccess = (codes) => {
-    document.getElementById('codes-title').innerText = "Enjoy, mon chéri!"
-    document.getElementById('nuclear-codes').innerText = codes.join(' \n ');
+const handleSuccessfulLogin = (code) => {
+    document.getElementById('nuclear-code').innerText = code;
     document.querySelector('form').style.display = 'none';
-    clearError();
+    document.querySelector('footer').style.display = 'block';
+    document.getElementById('code-title').innerText = "Enjoy, mon chéri!"
+
+    setErrorMessage("");
 };
 
-const clearError = () => setErrorMessage("");
 
 const logout = async () => {
     await window.localStorage.removeItem('token');
     window.location.href = 'index.html';
 }
 
-// get codes on load
-getCodes();
+// get code on load
+getCode();
